@@ -652,20 +652,7 @@
   - 父元素.replaceChild(新元素, 旧元素)：用新元素替换旧元素
   - 父元素.removeChild(子元素)：删除指定的子元素
 - 获取元素的样式
-  - 现代浏览器: getComputedStyle(元素, 伪元素)[name]
-  - ie8及以下: 元素.currentStyle[name]
-  - 兼容所有浏览器的方式:
-    ```javascript
-    function getStyle(obj, name) {
-        if (window.getComputedStyle) {
-            // 正常浏览器：有 getComputedStyle 方法
-            return getComputedStyle(obj, null)[name];
-        } else {
-            // IE8 及以下
-            return obj.currentStyle[name];
-        }
-    }
-    ```
+  - getComputedStyle(元素, 伪元素)[name]
 - 获取元素尺寸和位置
   - offsetWidth / offsetHeight：获取元素的完整尺寸（内容 + 内边距 + 边框都算上），返回数字（不带 px）
   - clientWidth / clientHeight：获取元素的可视区尺寸（内容 + 内边距，不含边框）
@@ -703,73 +690,295 @@
     - HTML 属性方式：直接在标签里写 onclick="alert('点我')"——结构和行为耦合，不推荐
     - JS 中为事件绑定函数（推荐）：
       ```javascript
-      var btn = document.getElementById("btn");
-      btn.onclick = function() {
-          alert("点我了");
-      };
+      document.querySelector('ul').addEventListener('click', (event) => {
+        alert("hello");
+      }, false);
       ```
 - 事件对象
   - 事件对象是什么：当事件触发时，浏览器会将一个事件对象（event）作为实参传递给事件处理函数——里面封装了和当前事件相关的一切信息
   - 获取事件对象：事件处理函数的第一个参数就是事件对象——
     ```javascript
-    box.onclick = function(event) {
-        // event 就是事件对象
-    };
+    document.querySelector('ul').addEventListener('click', (event) => {
+      // event就是事件对象
+      if (event.target.tagName === 'LI') {       // e.target 是实际被点的元素
+          console.log('你点了：' + event.target.textContent);
+      }
+    }, false);
     ```
   - 常用属性：
     - event.clientX / clientY：鼠标指针相对于浏览器可视窗口的坐标
-    - event.pageX / pageY：鼠标相对于整个网页的坐标（IE8 不支持）
+    - event.pageX / pageY：鼠标相对于整个网页的坐标
     - event.target：触发事件的那个元素（谁被点了）
-    - 键盘事件里 event.keyCode：按下的键的编码
-  - 浏览器兼容（重点）：IE8 中事件对象不会作为参数传入，而是保存在 window.event 里——兼容写法：
-    ```javascript
-    box.onclick = function(event) {
-        event = event || window.event;
-        // ……
-    };
-    ```
+    - 键盘事件里 event.key：按下的键
 - 事件的冒泡
   - 什么是冒泡：事件的传导——当元素上的事件被触发时，其祖先元素上的相同事件也会被触发，一层一层向上传，就像水里的气泡往上冒
     - 例子：span 在 div 里，div 在 body 里——给它们都绑定 onclick，点击 span 时，span、div、body 的点击事件会依次全部触发（从内向外）
   - 冒泡的用途：大部分情况下冒泡是有用的——比如给父元素绑定一个事件，就能响应所有子元素的操作（这是下一集「事件委派」的基础）
   - 取消冒泡（重点）：如果不希望冒泡，可以通过事件对象取消——
     ```javascript
-    event.cancelBubble = true;
+    event.stopPropagation();
     ```
 - 事件的委派
   - 把事件统一绑定到祖先元素上，利用冒泡，子元素的事件触发后会冒泡到祖先，祖先的事件函数就响应了；再通过 event.target 判断实际触发事件的是哪个元素
     ```javascript
-    ul.onclick = function(event) {
-        event = event || window.event;
-        if (event.target.className == "link") {
-            alert("点击了链接：" + event.target.innerHTML);
-        }
-    };
+    document.querySelector('ul').addEventListener('click', (event) => {
+      if (event.target.tagName === 'LI') {       // e.target 是实际被点的元素
+          console.log('你点了：' + event.target.textContent);
+      }
+    }, false);
     ```
   - 委派的优势（重点）：
     - 只绑定一次，性能好——不管子元素有多少个
     - 后添加的元素自动生效——因为事件绑在祖先上，新增的子元素触发后也会冒泡上来
+- 事件的传播
+  - 第一阶段：捕获阶段（Capture）：从最外层的祖先元素开始，从外向内逐级传递，直到目标元素——但默认情况下捕获阶段不会触发事件（只是"路过"做标记）
+  - 第二阶段：目标阶段（Target）：事件到达目标元素本身，触发目标元素上的事件处理函数
+  - 第三阶段：冒泡阶段（Bubble）：从目标元素开始从内向外逐级传导（就是第113集讲的冒泡），祖先元素上的同类事件依次触发
+  - addEventListener() 的第三个参数就是控制触发阶段的：false（默认）在冒泡阶段触发，true 在捕获阶段触发，实际开发基本都传 false
 
 ## bom
 > 参见basic/bom/
+- bom简介
+  - BOM 是什么：Browser Object Model，浏览器对象模型——浏览器把自身封装成一组对象供 JS 操作。BOM 对象都是通过 window 访问的（window 既是全局对象也是 BOM 的入口），包括 Navigator、Location、History、Screen 等
+- Navigator
+  - 代表当前浏览器的信息——用来识别浏览器
+  - 常用属性 userAgent：返回浏览器的用户代理字符串（一段包含浏览器名称、版本、内核的字符串）
+  - 判断浏览器类型
+    ```javascript
+    var ua = navigator.userAgent;
+    if (/chrome/i.test(ua)) {
+        alert("Chrome");
+    } else if (/firefox/i.test(ua)) {
+        alert("Firefox");
+    } else if (/msie/i.test(ua)) {
+        alert("IE");
+    }
+    ```
+- History
+  - 浏览器的历史记录（访问过的页面），可以通过它控制历史记录的跳转。出于隐私考虑，这个对象只能用来跳转，不能获取历史记录的具体内容
+  - 方法
+    - history.back()：回退——效果和浏览器左上角的后退按钮一样
+    - history.forward()：前进——和浏览器的前进按钮一样
+    - history.go(n)：跳转任意步数——需要传一个整数参数：
+      - history.go(1)：向前跳转一个页面（等于 forward()）
+      - history.go(-1)：向后跳转一个页面（等于 back()）
+      - history.go(-2)：向后跳转两个页面
+- Location
+  - 封装了浏览器地址栏的信息——当前页面的完整 URL
+  - 常用操作
+    - 直接打印 location：获取完整的地址栏信息（URL）
+    - location.href = "网址" 或直接给 location 赋值：让页面跳转到指定的地址——location = "http://www.baidu.com";
+    - assign()：跳转到其他页面，和直接修改 location 一样（会产生历史记录）
+    - reload()：重新加载当前页面（刷新，相当于按 F5）；传参数 reload(true) 强制清空缓存刷新
+    - replace()：用新页面替换当前页面——和 assign 的区别是不会在历史记录中留下痕迹（用户点后退回不去）
 
 ## 定时器与动画
 > 参见basic/timer-animation/
+- 定时器简介
+  - setInterval()——定时调用（核心）：
+    ```javascript
+    var timer = setInterval(function() {
+        console.log("num = " + num++);
+    }, 1000);
+    ```
+    - 把一个函数按照指定的时间间隔反复执行——每 1000 毫秒（1 秒）执行一次
+    - 两个参数：回调函数 + 间隔毫秒数
+    - 返回值：返回一个数字，作为这个定时器的唯一标识——后面关闭定时器就靠它
+  - clearInterval()——关闭定时器：
+    ```javascript
+    clearInterval(timer);
+    ```
+- 延时调用
+  - setTimeout()——延时调用
+    ```javascript
+    var timer = setTimeout(function() {
+        console.log("num = " + num);
+    }, 3000);
+    ```
+    - 延时调用一个函数不马上执行，而是隔一段时间（3000 毫秒）后执行，而且只执行一次
+    - 两个参数：回调函数 + 延时毫秒数
+  - clearTimeout()：关闭延时调用——在还没执行之前可以取消
+  - setTimeout 和 setInterval 的对比（重点）：
+    - setInterval：每隔一段时间执行一次，反复执行，直到 clearInterval 关闭
+    - setTimeout：延时一段时间后执行，只执行一次就自动关闭
+  - 一个高级技巧——用 setTimeout 模拟循环：在回调函数末尾再次调用 setTimeout 自身，可以实现"无限循环"的效果，而且比 setInterval 更可控（间隔可以动态调整）
+
+## json
+- JSON 的语法：
+  - 长得和 JS 对象字面量几乎一样，但属性名必须用双引号引起来：{"name":"孙悟空","age":18}
+  - 值只能是：字符串（双引号）、数字、布尔值、null、数组、对象
+  - JSON 本质上是一个字符串，不是 JS 对象
+- 两个核心方法：
+  - JSON.parse(json字符串)：把 JSON 字符串解析成 JS 对象（后端传来数据后用它转成对象再操作）
+  - JSON.stringify(js对象)：把 JS 对象转换成 JSON 字符串（要发给后端时用它序列化）
 
 ## 数据·变量·内存
 > 参见advanced/data-and-memory/
+- 数据类型
+  - 数据类型的分类回顾：
+    - 基本（值）类型：String、Number、Boolean、Undefined、Null
+    - 引用（对象）类型：Object、Array、Function
+  - 判断数据类型的三种方式（重点）：
+    - typeof：返回数据类型的字符串——能判断基本类型和 Function，但无法区分 Object 和 Array（都返回 "object"），而且 typeof null 是 "object"（历史 bug）
+    - instanceof：判断对象的具体类型（a instanceof Array）——专门用来区分引用类型
+    - ==：用来判断 undefined 和 null（因为没有 undefined/null 类型值可用 typeof 区分）
+- undefined和null相关问题
+  - 问题一：undefined 和 null 的区别（面试常考）：
+    - 相同点：都是"没有值"的意思，都只有一个值，转成布尔都是 false
+    - 不同点：
+      - undefined：表示未定义——变量声明了但没赋值时自动得到它（被动产生的"空"）
+      - null：表示主动赋的空值——开发者人为地把变量设为"空"（主动产生的"空"）
+    - 简单记：undefined 是"还没给"，null 是"故意给空"
+  - 问题二：什么时候给变量赋值为 null：
+    - 初始赋值——一个变量将来要保存对象，但现在还没有，就初始化为 null（var obj = null;），表明"这里将来是个对象"
+    - 结束前释放——对象不用了，把引用设为 null，让它失去引用变成垃圾，被垃圾回收机制回收（复习基础课第69集 GC 的知识）
+  - 类型判断的再补充：typeof 无法区分 null（返回 "object"），判断 null 要用 === null
+- 变量、内存
+  - 内存的基本认识：
+    - 内存条通电后产生的存储空间，是临时的（断电就没了）
+    - 内存中存储数据分两类空间：栈空间（存变量）和堆空间（存对象）
+  - 变量的内存模型（核心结论）：
+    - 基本类型：变量在栈内存中保存的是值本身——var a = 3; 栈里 a 就是 3
+    - 引用类型：变量在栈内存中保存的是对象在堆内存中的地址值（引用）——var obj = {} 栈里的 obj 只是个"门牌号"，真正的对象在堆里
+  - 赋值时的区别：
+    - var b = a;（基本类型）——把 a 的值复制一份给 b，两者互不干扰
+    - var obj2 = obj;（引用类型）——把 obj 的地址复制一份给 obj2，两个变量指向同一个对象——通过 obj2 改属性，obj 也"跟着变"（基础课第49集讲过现象，这里讲透原理）
+  - 变量释放：var a = 3 中，数字 3 本身不会被回收；对象如果失去所有引用，才会被垃圾回收机制自动回收
+- 参数传递
+  - JS与java一样。只有值传递——只不过传基本类型时传的是"值"，传引用类型时传的是"地址值"
 
 ## 对象与函数深入
 > 参见advanced/object-function/
+- 对象
+  - 对象的本质：对象在内存中就是一堆「属性名: 属性值」的集合；obj.name 的本质是通过属性名（字符串）去查找对应的值——所以 obj["name"] 和 obj.name 完全等价，属性名在底层都是字符串
+  - 对象的内存结构回顾：创建对象时在堆中开辟空间，栈中的变量保存指向它的地址；修改对象属性不会改地址，只有给变量赋新对象才改地址
+  - 属性名和属性值的深入理解：
+    - 属性名是字符串（特殊属性名必须用 [" "] 访问）
+    - 属性值可以是任意类型——是函数就叫方法，是对象就是嵌套对象
+  - 对象与函数的关系预告：typeof 函数 是 "function"，但函数本质上也是对象（可以有属性，如 fn.test = 1）——这个特性是理解原型（prototype 是函数对象身上的属性）的关键铺垫
+- 函数
+  - 函数也是对象（内存层面的理解）：函数定义后，解析器在堆内存中创建一个函数对象，函数名是栈中的变量，保存着指向该函数对象的地址——和普通对象一样，var fn2 = fn1; 只是复制地址，两个变量指向同一个函数
+  - fn 和 fn() 的区别（深入版）：
+    - fn：拿到的是函数对象本身（地址）
+    - fn()：调用函数，拿到的是函数的返回值
+    - 结合内存模型，这两个的区别就非常清晰了
+  - 函数对象的属性：既然函数是对象，就可以给它加属性——fn.test = "hello"；每个函数默认就带 prototype 属性（为后面原型链埋伏笔）
+  - 回调函数的本质：把函数对象（地址）作为实参传给另一个函数，由对方在合适的时候通过地址调用——setInterval(fn, 1000) 传的是地址，定时器替你调用
+  - typeof fn 返回 "function"：说明函数是一种特殊的对象类型
+- 回调函数
+  - 什么函数是回调函数：满足三个条件——
+    - 你定义的
+    - 你没有直接调用
+    - 但最终它执行了（由别人/系统在合适的时候调用）。比如 btn.onclick = function(){}——你定义的、你没调、点击时浏览器替你调用
+  - 常见的回调函数场景（总结）：
+    - DOM 事件回调：btn.onclick = fn
+    - 定时器回调：setInterval(fn, 1000)、setTimeout(fn, 1000)
+    - 数组遍历回调：arr.forEach(function(){})
+    - Ajax 请求回调、生命周期回调等
+  - 回调函数的分类视角：同步回调（如 forEach——立即依次执行）和异步回调（如定时器、事件——将来某个时刻才执行）——这为后面的「事件机制」做了铺垫
+  - 意义：回调是 JS 异步编程的基石——理解了回调，才能理解定时器、事件、Ajax 乃至后面 Promise 的设计动机
+- IIFE(立即执行函数)
+  - IIFE 回顾：(function(){ ... })()——定义完立即执行的匿名函数，只执行一次
+  - IIFE 的作用（高级视角）：
+    - 隐藏实现细节，不污染全局命名空间：IIFE 内部形成独立的函数作用域，里面声明的变量/函数外面访问不到，不会和全局变量冲突——多人协作、引入第三方库时尤其重要
+    - 压缩全局变量的查找路径（顺带一提的性能优化思想）
+  - 经典应用——模块化开发的雏形：把一组功能封装在 IIFE 里，只通过返回的对象暴露需要的接口：
+    ```javascript
+    var myModule = (function() {
+        var privateData = 123;           // 私有数据，外面拿不到
+        function privateFn() {}          // 私有函数
+        return {
+            publicFn: function() { ... } // 只暴露公开接口
+        };
+    })();
+    ```
+  - 和闭包的关系：IIFE 形成的独立作用域 + 返回的内部函数，就构成了闭包——为后面讲闭包埋伏笔
+- this
+  - this 是什么：函数执行时 JS 解析器每次都会传递进一个隐含的参数叫 this，它指向一个对象；指向谁取决于函数的调用方式（不是定义方式）
+  - this 的指向规则（系统总结，必背）：
+    - 函数直接调用 fn()：this → window
+    - 对象方法调用 obj.fn()：this → 调用它的对象（obj）
+    - 构造函数调用 new Fn()：this → 新创建的实例对象
+    - call/apply 调用 fn.call(obj)：this → 指定的对象
 
 ## 原型与原型链
 > 参见advanced/prototype-chain/
+- 函数的prototype
+  - 函数的 prototype 属性（显式原型）：
+    - 每个函数都有一个 prototype 属性，它默认指向一个 Object 空对象（即原型对象）
+    - 原型对象中有一个属性 constructor，它指回函数本身——Person.prototype.constructor === Person
+    - 基本类型（如数字、字符串）没有 prototype，只有函数才有
+  - 给原型对象添加属性/方法：
+    ```javascript
+    function Fn() {}
+    Fn.prototype.test = function() {
+        console.log("test()");
+    };
+    ```
+    - 原型对象添加属性后，函数的所有实例对象自动拥有原型中的属性/方法——这就是实例共享方法的原理
+- 显示原型与隐式原型
+  - 隐式原型 __proto__：每个实例对象都有一个 __proto__ 属性，指向创建它的构造函数的 prototype——
+  - 显式原型 vs 隐式原型：
+    - 显式原型：函数.prototype——函数身上的属性
+    - 隐式原型：实例.__proto__——实例对象身上的属性
+    - 两者指向同一个原型对象（这行 fn.__proto__ === Fn.prototype 为 true 的代码是整个原型体系的基石）
+- 原型链
+  - 核心规则：当访问一个对象的属性（包括方法）时——
+    - 先在自身属性中查找，找到直接返回
+    - 自身没有，就沿着 __proto__ 找到原型对象继续查
+    - 原型里还没有，继续沿着原型的 __proto__ 向上找……
+    - 一直找到 Object.prototype（原型链的尽头）还没有，返回 undefined
+  - 两个重要结论（考点）：
+    - 原型链本质是隐式原型链——查找时走的是 __proto__，不是 prototype
+    - 原型链是用来查找对象的属性的（找不到返回 undefined）；它和作用域链（查找变量，找不到报错）是两条不同的链，别搞混
+  - 顺带明确：实例能直接用 toString()、hasOwnProperty()，就是因为这些方法定义在 Object.prototype 上
+- 原型链属性
+  - 读取对象的属性值时：会自动到原型链中查找（自身没有就找原型，一直找到 Object.prototype）
+  - 设置对象的属性值时：不会查找原型链——如果当前对象中没有此属性，就直接添加此属性并赋值
+  - 设计原则
+    - 方法一般定义在原型中——所有实例共享一份，不重复
+    - 属性一般通过构造函数定义在对象本身上——每个实例可以有不同的值
+- instanceof
+  - 如果 B 函数的显式原型（prototype）在 A 对象的原型链（隐式原型链）上，返回 true，否则返回 false
 
 ## 执行上下文
 > 参见advanced/execution-context/
+- 变量提升与函数提升
+  - 变量声明提升：通过 var 定义变量的语句，在所有代码执行之前就会被声明（但不会赋值）——所以声明之前使用变量不会报错，而是 undefined
+  - 函数声明提升：通过 function 声明的函数，在所有代码执行之前就被创建（声明 + 赋值都提前了）——所以函数声明之前就可以直接调用
+  - 对比——函数表达式不提升：var fn = function(){} 只有变量声明提升（提升的是 undefined），函数没创建——提前调用会报错 "fn is not a function"
+  - 提升的本质预告：为什么会提升？因为代码执行前会先创建执行上下文，在这个过程中解析器会把变量声明和函数声明提取出来
+- 执行上下文
+  - 什么是执行上下文：代码执行前/执行时，JS 解析器会创建一个"环境"对象来管理当前作用域中的变量、函数和 this——这个环境就叫执行上下文
+  - 全局执行上下文：在执行全局代码之前创建，window 就是全局执行上下文。创建过程（准备工作）：
+    - 收集全局变量（var）并赋值为 undefined——这就是变量提升的原因
+    - 收集全局函数（function 声明）并赋值（创建函数）——这就是函数提升的原因
+    - 确定 this 为 window
+  - 函数执行上下文：在调用函数时创建（每调用一次创建一个新的）。创建过程：
+    - 收集形参并赋值为传入的实参
+    - 收集函数内的局部变量（var），赋值为 undefined
+    - 收集函数内的函数声明并创建
+    - 确定 this
+    - 然后才开始逐行执行函数体内的代码
+- 执行上下文栈
+  - 执行上下文栈：JS 引擎用一个栈结构（先进后出）来管理所有的执行上下文
+  - 入栈和出栈的流程：
+    - 页面加载时，全局执行上下文先压入栈底
+    - 每次调用函数，就创建该函数的执行上下文并压入栈顶
+    - 函数执行完毕，它的执行上下文弹出栈并销毁
+    - 栈顶的上下文就是当前正在执行的代码环境
+    - 所有函数执行完，栈中只剩全局执行上下文（页面关闭才销毁）
 
 ## 作用域与闭包
 > 参见advanced/scope-closure/
+- 作用域与作用域链
+  - 作用域的理解：作用域是一个变量和函数的作用范围——一个代码段所在的区域。JS 中有全局作用域和函数作用域（ES5 没有块级作用域）
+  - 作用域什么时候产生：作用域是静态的——函数定义时就确定了（不是调用时），它在定义时就"圈定"了这个函数能访问哪些变量
+  - 作用域链（重点）：内部函数可以访问外部函数的变量——
+    - 查找变量时：先在自身作用域找，没有就去上一级作用域找，一层层向上直到全局作用域
+    - 查找的方向是"由里到外"，这条链就是作用域链
+    - 关键区别：作用域链找的是变量（找不到报错：xxx is not defined）；原型链找的是对象的属性（找不到返回 undefined）
+  - 和执行上下文的关系：作用域在函数定义时就确定；执行上下文在函数调用时才创建——执行上下文是在作用域的基础上创建的，作用域决定了执行上下文中变量的查找范围
 
 ## 创建模式与继承
 > 参见advanced/inheritance/
